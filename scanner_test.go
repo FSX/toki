@@ -13,13 +13,13 @@ const (
 func TestScanner(t *testing.T) {
 	input := "1  + 2+3 + happy birthday  "
 	t.Logf("input: %s", input)
-	s := NewScanner(
+	scanner := NewScanner(
 		[]Def{
 			{Token: NUMBER, Pattern: "[0-9]+"},
 			{Token: PLUS, Pattern: `\+`},
 			{Token: STRING, Pattern: "[a-z]+"},
 		})
-	s.SetInput(input)
+	s := scanner.Scan(input)
 	expected := []Token{
 		NUMBER,
 		PLUS,
