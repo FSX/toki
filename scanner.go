@@ -7,6 +7,8 @@ import (
 	"unicode/utf8"
 )
 
+var regexSpace = regexp.MustCompile(`^\s+`)
+
 type Token uint32
 
 const (
@@ -19,13 +21,13 @@ type Position struct {
 	Column int
 }
 
-func (this *Position) move(s []byte) {
-	this.Line += bytes.Count(s, []byte{'\n'})
+func (p *Position) move(s []byte) {
+	p.Line += bytes.Count(s, []byte{'\n'})
 	last := bytes.LastIndex(s, []byte{'\n'})
 	if last != -1 {
-		this.Column = 1
+		p.Column = 1
 	}
-	this.Column += utf8.RuneCount(s[last+1:])
+	p.Column += utf8.RuneCount(s[last+1:])
 }
 
 type Def struct {
@@ -34,21 +36,19 @@ type Def struct {
 	regexp  *regexp.Regexp
 }
 
-type Scanner struct {
-	space *regexp.Regexp
-	pos   Position
-	input []byte
-	def   []Def
-}
-
 type Result struct {
 	Token Token
 	Value []byte
 	Pos   Position
 }
 
-func (this *Result) String() string {
-	return fmt.Sprintf("Line: %d, Column: %d, %s", this.Pos.Line, this.Pos.Column, this.Value)
+func (r *Result) String() string {
+	return fmt.Sprintf("Line: %d, Column: %d, %s", r.Pos.Line, r.Pos.Column, r.Value)
+}
+
+type Scanner struct {
+	space *regexp.Regexp
+	def   []Def
 }
 
 func NewScanner(def []Def) *Scanner {
@@ -56,51 +56,59 @@ func NewScanner(def []Def) *Scanner {
 		def[i].regexp = regexp.MustCompile("^" + def[i].Pattern)
 	}
 	return &Scanner{
-		space: regexp.MustCompile(`^\s+`),
+		space: regexSpace,
 		def:   def,
 	}
 }
 
-func (this *Scanner) SetInput(input string) {
-	this.input = []byte(input)
-	this.pos.Line = 1
-	this.pos.Column = 1
+func (s *Scanner) Scan(input string) *Session {
+	return &Session{
+		scanner: s,
+		pos:     Position{1, 1},
+		input:   []byte(input),
+	}
 }
 
-func (this *Scanner) skip() {
-	result := this.space.Find(this.input)
+type Session struct {
+	scanner *Scanner
+	pos     Position
+	input   []byte
+}
+
+func (s *Session) skip() {
+	result := s.scanner.space.Find(s.input)
 	if result == nil {
 		return
 	}
-	this.pos.move(result)
-	this.input = bytes.TrimPrefix(this.input, result)
+	s.pos.move(result)
+	s.input = bytes.TrimPrefix(s.input, result)
 }
 
-func (this *Scanner) scan() *Result {
-	this.skip()
-	if len(this.input) == 0 {
-		return &Result{Token: EOF, Pos: this.pos}
+func (s *Session) scan() *Result {
+	s.skip()
+	if len(s.input) == 0 {
+		return &Result{Token: EOF, Pos: s.pos}
 	}
-	for _, r := range this.def {
-		result := r.regexp.Find(this.input)
+	for _, r := range s.scanner.def {
+		result := r.regexp.Find(s.input)
 		if result == nil {
 			continue
 		}
-		return &Result{Token: r.Token, Value: result, Pos: this.pos}
+		return &Result{Token: r.Token, Value: result, Pos: s.pos}
 	}
-	return &Result{Token: Error, Pos: this.pos}
+	return &Result{Token: Error, Pos: s.pos}
 }
 
-func (this *Scanner) Peek() *Result {
-	return this.scan()
+func (s *Session) Peek() *Result {
+	return s.scan()
 }
 
-func (this *Scanner) Next() *Result {
-	t := this.scan()
+func (s *Session) Next() *Result {
+	t := s.scan()
 	if t.Token == Error || t.Token == EOF {
 		return t
 	}
-	this.input = bytes.TrimPrefix(this.input, t.Value)
-	this.pos.move(t.Value)
+	s.input = bytes.TrimPrefix(s.input, t.Value)
+	s.pos.move(t.Value)
 	return t
 }
