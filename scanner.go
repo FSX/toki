@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-var regexSpace = regexp.MustCompile(`^\s+`)
+var regexSpace = regexp.MustCompile(`^[\t ]+`)
 
 type Token uint32
 

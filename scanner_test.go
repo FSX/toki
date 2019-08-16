@@ -4,13 +4,13 @@ import (
 	"testing"
 )
 
-const (
-	NUMBER Token = iota + 1
-	PLUS
-	STRING
-)
-
 func TestScanner(t *testing.T) {
+	const (
+		NUMBER Token = iota + 1
+		PLUS
+		STRING
+	)
+
 	input := "1  + 2+3 + happy birthday  "
 	t.Logf("input: %s", input)
 	scanner := NewScanner(
